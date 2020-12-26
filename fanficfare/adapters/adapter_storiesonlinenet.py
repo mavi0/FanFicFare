@@ -339,6 +339,35 @@ class StoriesOnlineNetAdapter(BaseSiteAdapter):
             except HTTPError as e:
                 if e.code == 404:
                     raise exceptions.FailedToDownload("Story not found in Author's list--Set Access Level to Full Access and change Listings Theme back to "+self.getTheme())
+
+            if 'css/t-classic2.css' not in data and self.getConfig("force_classic_theme",True):
+                logger.debug("author page pre:==================================================")
+                logger.debug(data)
+                ## Dec2020 - site doesn't remember the Theme setting
+                ## between logins anymore and FFF only parses Theme
+                ## Classic.  Force this session at least to Classic.
+                ## Also rows:50 will mean fewer author pages.
+                logger.info("Attempting to change Theme to Classic")
+                logger.debug(self._fetchUrl('https://'+self.getSiteDomain()+'/sol-secure/user/my_account.php',usecache=False))
+                logger.debug(self._fetchUrl('https://'+self.getSiteDomain()+'/sol-secure/user/my_account.php?cmd=listingFonts',usecache=False))
+                postUrl = 'https://'+self.getSiteDomain()+'/sol-secure/user/my_account.php'
+                params = {'listingTheme':1,
+                          'listingSize':10,
+                          'listing_rows':50,
+                          'listingProf':'auto',
+                          'cmd':'Save Listings Settings'}
+                logger.debug(self._postUrl(postUrl,params,usecache=False))
+                logger.debug(self._fetchUrl('https://'+self.getSiteDomain()+'/sol-secure/user/my_account.php?cmd=listingFonts',usecache=False))
+                postUrl = 'https://'+self.getSiteDomain()+'/sol-secure/user/my_account.php'
+                params['listingTheme']=0
+                logger.debug(self._postUrl(postUrl,params,usecache=False))
+                # re-fetch author page.
+                data = self._fetchUrl(self.story.getList('authorUrl')[0] + "/" + unicode(page))
+                logger.debug("author page post:==================================================")
+                logger.debug(data)
+                if 'css/t-classic2.css' in data:
+                    logger.info("Change Theme to Classic: Succeeded")
+
             asoup = self.make_soup(data)
 
             story_row = asoup.find(row_class, {'id' : 'sr' + self.story.getMetadata('storyId')})
