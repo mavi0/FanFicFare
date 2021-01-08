@@ -19,7 +19,13 @@ from __future__ import absolute_import
 from datetime import datetime
 import logging
 logger = logging.getLogger(__name__)
-import re
+import re, time
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # py2 vs py3 transition
 from ..six import text_type as unicode
@@ -79,10 +85,30 @@ class FanFictionNetSiteAdapter(BaseSiteAdapter):
         ## ffnet(and, I assume, fpcom) tends to fail more if hit too
         ## fast.  This is in additional to what ever the
         ## slow_down_sleep_time setting is.
-        return BaseSiteAdapter._fetchUrl(self,url,
-                                         parameters=parameters,
-                                         extrasleep=extrasleep,
-                                         usecache=usecache)
+        # return BaseSiteAdapter._fetchUrl(self,url,
+        #                                  parameters=parameters,
+        #                                  extrasleep=extrasleep,
+        #                                  usecache=usecache)
+
+        driver = webdriver.Firefox()
+        driver.get(url)
+
+        # Cloudflare detected, wait for it to verify
+        if "just" in driver.title:
+            time.sleep(20)
+            driver.get(url)
+        
+        # Cloudflare detected, wait for user to complete captcha
+        if "Coludflare" in driver.title:
+            raw_input("Captcha detected. Please complete and press enter to continue...")
+            driver.get(url)
+
+        time.sleep(5)
+
+        source = driver.page_source
+        driver.close()
+        return source
+
 
     def use_pagecache(self):
         '''
